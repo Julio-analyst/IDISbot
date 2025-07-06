@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Env
+.venv/
+.env
+
+# Streamlit secrets
+.streamlit/secrets.toml
+
+# IDE/editor
+.vscode/
+*.swp
+.DS_Store
