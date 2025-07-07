@@ -10,6 +10,9 @@ import faiss
 openai.api_key = st.secrets["OPENAI_API_KEY"]
 
 # RAG initialization
+from openai import OpenAI
+
+client = OpenAI()
 def initialize_rag():
     index = faiss.IndexFlatL2(1536)
     knowledge_base = [
@@ -22,9 +25,10 @@ def initialize_rag():
         "Obligasi adalah surat utang jangka menengah atau panjang yang diterbitkan oleh pemerintah atau perusahaan."
     ]
     try:
-        response = openai.embeddings.create(
-            model="text-embedding-3-small",
-            input=knowledge_base
+        response = client.embeddings.create(
+    model="text-embedding-3-small",
+    input=knowledge_base
+
         )
         embeddings = [d.embedding for d in response.data]
         index.add(np.array(embeddings))
@@ -69,9 +73,10 @@ def get_stock_info(symbol):
 # Cari knowledge
 def search_knowledge(query, index, knowledge_base, top_k=3):
     try:
-        response = openai.embeddings.create(
+        response = client.embeddings.create(
             model="text-embedding-3-small",
             input=[query]
+
         )
         query_embedding = np.array([response.data[0].embedding])
         D, I = index.search(query_embedding, top_k)
@@ -147,7 +152,7 @@ def chat_with_ai():
             )
 
             try:
-                stream = openai.chat.completions.create(
+                stream = client.chat.completions.create(
                     model="gpt-4o-mini",
                     messages=[
                         {"role": "system", "content": system_prompt},
