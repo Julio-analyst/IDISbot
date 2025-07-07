@@ -2,20 +2,19 @@ import streamlit as st
 import yfinance as yf
 import pandas as pd
 import plotly.graph_objects as go
+import openai
 import numpy as np
 
 try:
     import faiss
 except ImportError:
-    faiss = None
-    st.error("FAISS tidak tersedia. Jalankan `pip install faiss-cpu` untuk menginstalnya.")
+    st.error("FAISS tidak tersedia. Silakan jalankan `pip install faiss-cpu`.")
+    st.stop()
 
-from openai import OpenAI
+# Set API key OpenAI
+openai.api_key = st.secrets["OPENAI_API_KEY"]
 
-# Inisialisasi OpenAI client dengan API key
-client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
-
-# Initialize RAG
+# Inisialisasi RAG
 def initialize_rag():
     index = faiss.IndexFlatL2(1536)
     knowledge_base = [
@@ -28,7 +27,7 @@ def initialize_rag():
         "Obligasi adalah surat utang jangka menengah atau panjang yang diterbitkan oleh pemerintah atau perusahaan."
     ]
     try:
-        response = client.embeddings.create(
+        response = openai.embeddings.create(
             model="text-embedding-3-small",
             input=knowledge_base
         )
@@ -38,7 +37,7 @@ def initialize_rag():
         st.warning(f"Gagal memuat embedding dari OpenAI: {e}")
     return index, [], knowledge_base
 
-# Ambil info saham dari Yahoo Finance
+# Ambil info saham
 def get_stock_info(symbol):
     try:
         stock = yf.Ticker(symbol)
@@ -46,9 +45,9 @@ def get_stock_info(symbol):
         hist = stock.history(period="14d")
 
         if info is None or len(info) == 0:
-            raise ValueError("Data info saham kosong.")
+            raise ValueError("Data info saham kosong dari yfinance.")
         if hist.empty:
-            raise ValueError("Histori saham kosong.")
+            raise ValueError("Data histori saham kosong dari yfinance.")
 
         delta = hist['Close'].diff()
         gain = delta.where(delta > 0, 0).rolling(window=14).mean()
@@ -72,10 +71,10 @@ def get_stock_info(symbol):
         st.error(f"Error fetching stock info: {str(e)}")
         return None
 
-# Cari pengetahuan dari RAG
+# Cari knowledge dari RAG
 def search_knowledge(query, index, knowledge_base, top_k=3):
     try:
-        response = client.embeddings.create(
+        response = openai.embeddings.create(
             model="text-embedding-3-small",
             input=[query]
         )
@@ -94,7 +93,7 @@ def chat_with_ai():
     if "messages" not in st.session_state:
         st.session_state.messages = []
 
-    index, vectors, kb_texts = initialize_rag()
+    index, _, kb_texts = initialize_rag()
 
     with st.sidebar:
         st.subheader("📈 Analisis Saham")
@@ -152,7 +151,7 @@ def chat_with_ai():
             )
 
             try:
-                stream = client.chat.completions.create(
+                stream = openai.chat.completions.create(
                     model="gpt-4o-mini",
                     messages=[
                         {"role": "system", "content": system_prompt},
