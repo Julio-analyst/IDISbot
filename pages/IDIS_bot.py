@@ -4,17 +4,12 @@ import pandas as pd
 import plotly.graph_objects as go
 import openai
 import numpy as np
+import faiss
 
-try:
-    import faiss
-except ImportError:
-    st.error("FAISS tidak tersedia. Silakan jalankan `pip install faiss-cpu`.")
-    st.stop()
-
-# Set API key OpenAI
+# Set API Key
 openai.api_key = st.secrets["OPENAI_API_KEY"]
 
-# Inisialisasi RAG
+# RAG initialization
 def initialize_rag():
     index = faiss.IndexFlatL2(1536)
     knowledge_base = [
@@ -27,11 +22,11 @@ def initialize_rag():
         "Obligasi adalah surat utang jangka menengah atau panjang yang diterbitkan oleh pemerintah atau perusahaan."
     ]
     try:
-        response = openai.embeddings.create(
+        response = openai.Embedding.create(
             model="text-embedding-3-small",
             input=knowledge_base
         )
-        embeddings = [d.embedding for d in response.data]
+        embeddings = [d["embedding"] for d in response["data"]]
         index.add(np.array(embeddings))
     except Exception as e:
         st.warning(f"Gagal memuat embedding dari OpenAI: {e}")
@@ -44,10 +39,8 @@ def get_stock_info(symbol):
         info = stock.info
         hist = stock.history(period="14d")
 
-        if info is None or len(info) == 0:
-            raise ValueError("Data info saham kosong dari yfinance.")
-        if hist.empty:
-            raise ValueError("Data histori saham kosong dari yfinance.")
+        if not info or hist.empty:
+            raise ValueError("Data saham tidak tersedia dari yfinance.")
 
         delta = hist['Close'].diff()
         gain = delta.where(delta > 0, 0).rolling(window=14).mean()
@@ -71,21 +64,21 @@ def get_stock_info(symbol):
         st.error(f"Error fetching stock info: {str(e)}")
         return None
 
-# Cari knowledge dari RAG
+# Search RAG
 def search_knowledge(query, index, knowledge_base, top_k=3):
     try:
-        response = openai.embeddings.create(
+        response = openai.Embedding.create(
             model="text-embedding-3-small",
             input=[query]
         )
-        query_embedding = np.array([response.data[0].embedding])
+        query_embedding = np.array([response["data"][0]["embedding"]])
         D, I = index.search(query_embedding, top_k)
         return [knowledge_base[i] for i in I[0]]
     except Exception as e:
         st.warning(f"Gagal melakukan pencarian embedding: {e}")
         return []
 
-# UI Chatbot
+# Main Chat Function
 def chat_with_ai():
     st.title("🤖 IDIS BOT")
     st.markdown("Asisten Investasi Pintar Anda 💰")
@@ -93,7 +86,7 @@ def chat_with_ai():
     if "messages" not in st.session_state:
         st.session_state.messages = []
 
-    index, _, kb_texts = initialize_rag()
+    index, vectors, kb_texts = initialize_rag()
 
     with st.sidebar:
         st.subheader("📈 Analisis Saham")
@@ -151,8 +144,8 @@ def chat_with_ai():
             )
 
             try:
-                stream = openai.chat.completions.create(
-                    model="gpt-4o-mini",
+                stream = openai.ChatCompletion.create(
+                    model="gpt-4o",
                     messages=[
                         {"role": "system", "content": system_prompt},
                         *[{"role": m["role"], "content": m["content"]} for m in st.session_state.messages],
@@ -162,9 +155,10 @@ def chat_with_ai():
                 )
 
                 for chunk in stream:
-                    content = chunk.choices[0].delta.content or ""
-                    full_response += content
-                    message_placeholder.markdown(full_response + "▌")
+                    if "content" in chunk["choices"][0]["delta"]:
+                        content = chunk["choices"][0]["delta"]["content"]
+                        full_response += content
+                        message_placeholder.markdown(full_response + "▌")
 
                 message_placeholder.markdown(full_response)
                 st.session_state.messages.append({"role": "assistant", "content": full_response})
@@ -175,7 +169,7 @@ def chat_with_ai():
                     "content": "⚠️ Maaf, terjadi gangguan saat menghubungi model AI. Coba beberapa saat lagi."
                 })
 
-# Verifikasi login
+# Login check
 if "isverif" not in st.session_state or not st.session_state["isverif"]:
     st.header("🚫 AKSES DITOLAK")
     st.subheader("Silakan login / buat akun terlebih dahulu.")
