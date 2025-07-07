@@ -2,17 +2,20 @@ import streamlit as st
 import yfinance as yf
 import pandas as pd
 import plotly.graph_objects as go
-import openai
 import numpy as np
-import faiss
 
-# Set API key
-openai.api_key = st.secrets["OPENAI_API_KEY"]
+try:
+    import faiss
+except ImportError:
+    faiss = None
+    st.error("FAISS tidak tersedia. Jalankan `pip install faiss-cpu` untuk menginstalnya.")
 
-# RAG initialization
 from openai import OpenAI
 
-client = OpenAI()
+# Inisialisasi OpenAI client dengan API key
+client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+
+# Initialize RAG
 def initialize_rag():
     index = faiss.IndexFlatL2(1536)
     knowledge_base = [
@@ -26,9 +29,8 @@ def initialize_rag():
     ]
     try:
         response = client.embeddings.create(
-    model="text-embedding-3-small",
-    input=knowledge_base
-
+            model="text-embedding-3-small",
+            input=knowledge_base
         )
         embeddings = [d.embedding for d in response.data]
         index.add(np.array(embeddings))
@@ -36,7 +38,7 @@ def initialize_rag():
         st.warning(f"Gagal memuat embedding dari OpenAI: {e}")
     return index, [], knowledge_base
 
-# Ambil info saham
+# Ambil info saham dari Yahoo Finance
 def get_stock_info(symbol):
     try:
         stock = yf.Ticker(symbol)
@@ -44,9 +46,9 @@ def get_stock_info(symbol):
         hist = stock.history(period="14d")
 
         if info is None or len(info) == 0:
-            raise ValueError("Data info saham kosong dari yfinance.")
+            raise ValueError("Data info saham kosong.")
         if hist.empty:
-            raise ValueError("Data histori saham kosong dari yfinance.")
+            raise ValueError("Histori saham kosong.")
 
         delta = hist['Close'].diff()
         gain = delta.where(delta > 0, 0).rolling(window=14).mean()
@@ -70,13 +72,12 @@ def get_stock_info(symbol):
         st.error(f"Error fetching stock info: {str(e)}")
         return None
 
-# Cari knowledge
+# Cari pengetahuan dari RAG
 def search_knowledge(query, index, knowledge_base, top_k=3):
     try:
         response = client.embeddings.create(
             model="text-embedding-3-small",
             input=[query]
-
         )
         query_embedding = np.array([response.data[0].embedding])
         D, I = index.search(query_embedding, top_k)
@@ -85,7 +86,7 @@ def search_knowledge(query, index, knowledge_base, top_k=3):
         st.warning(f"Gagal melakukan pencarian embedding: {e}")
         return []
 
-# UI Chat
+# UI Chatbot
 def chat_with_ai():
     st.title("🤖 IDIS BOT")
     st.markdown("Asisten Investasi Pintar Anda 💰")
@@ -123,7 +124,6 @@ def chat_with_ai():
                 except:
                     st.warning("Gagal menampilkan grafik histori saham.")
 
-    # Chat Display
     with st.chat_message("assistant"):
         st.markdown("Halo! Saya IDIS Bot, siap bantu kamu seputar investasi! 🧠")
 
