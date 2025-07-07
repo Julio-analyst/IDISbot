@@ -6,10 +6,10 @@ import openai
 import numpy as np
 import faiss
 
-# Set API key (OpenAI >= v1.0)
+# Set API key
 openai.api_key = st.secrets["OPENAI_API_KEY"]
 
-# Inisialisasi FAISS & embedding
+# RAG initialization
 def initialize_rag():
     index = faiss.IndexFlatL2(1536)
     knowledge_base = [
@@ -32,30 +32,30 @@ def initialize_rag():
         st.warning(f"Gagal memuat embedding dari OpenAI: {e}")
     return index, [], knowledge_base
 
-# Ambil info saham dan hitung RSI
+# Ambil info saham
 def get_stock_info(symbol):
     try:
         stock = yf.Ticker(symbol)
         info = stock.info
         hist = stock.history(period="14d")
 
+        if info is None or len(info) == 0:
+            raise ValueError("Data info saham kosong dari yfinance.")
+        if hist.empty:
+            raise ValueError("Data histori saham kosong dari yfinance.")
+
         delta = hist['Close'].diff()
-        gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
-        loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+        gain = delta.where(delta > 0, 0).rolling(window=14).mean()
+        loss = -delta.where(delta < 0, 0).rolling(window=14).mean()
         rs = gain / loss
         rsi = 100 - (100 / (1 + rs))
         latest_rsi = rsi.iloc[-1] if not rsi.isnull().all() else None
 
-        current_price = info.get('currentPrice', 0)
-        previous_close = info.get('previousClose', 0)
-        price_change = current_price - previous_close
-        price_change_percent = (price_change / previous_close) * 100 if previous_close else 0
-
         return {
             'name': info.get('longName', 'N/A'),
-            'current_price': current_price,
-            'change': price_change,
-            'change_percent': price_change_percent,
+            'current_price': info.get('currentPrice', 0),
+            'change': info.get('currentPrice', 0) - info.get('previousClose', 0),
+            'change_percent': ((info.get('currentPrice', 0) - info.get('previousClose', 0)) / info.get('previousClose', 1)) * 100,
             'volume': info.get('volume', 0),
             'market_cap': info.get('marketCap', 0),
             'pe_ratio': info.get('trailingPE', 0),
@@ -66,7 +66,7 @@ def get_stock_info(symbol):
         st.error(f"Error fetching stock info: {str(e)}")
         return None
 
-# Cari knowledge base
+# Cari knowledge
 def search_knowledge(query, index, knowledge_base, top_k=3):
     try:
         response = openai.embeddings.create(
@@ -80,7 +80,7 @@ def search_knowledge(query, index, knowledge_base, top_k=3):
         st.warning(f"Gagal melakukan pencarian embedding: {e}")
         return []
 
-# UI & Logic Chat
+# UI Chat
 def chat_with_ai():
     st.title("🤖 IDIS BOT")
     st.markdown("Asisten Investasi Pintar Anda 💰")
@@ -90,7 +90,6 @@ def chat_with_ai():
 
     index, vectors, kb_texts = initialize_rag()
 
-    # Sidebar Saham
     with st.sidebar:
         st.subheader("📈 Analisis Saham")
         stock_symbol = st.text_input("Masukkan simbol saham (contoh: GOTO.JK)", "GOTO.JK")
@@ -104,16 +103,20 @@ def chat_with_ai():
                 st.write(f"Dividen: {stock_info['dividend_yield']:.2f}%")
                 st.write(f"RSI: {stock_info['rsi']:.2f}" if stock_info['rsi'] else "RSI: Tidak tersedia")
 
-                hist = yf.Ticker(stock_symbol).history(period="1y")
-                fig = go.Figure(data=[go.Candlestick(
-                    x=hist.index,
-                    open=hist['Open'],
-                    high=hist['High'],
-                    low=hist['Low'],
-                    close=hist['Close']
-                )])
-                fig.update_layout(title=f"{stock_symbol} - Grafik 1 Tahun")
-                st.plotly_chart(fig)
+                try:
+                    hist = yf.Ticker(stock_symbol).history(period="1y")
+                    if not hist.empty:
+                        fig = go.Figure(data=[go.Candlestick(
+                            x=hist.index,
+                            open=hist['Open'],
+                            high=hist['High'],
+                            low=hist['Low'],
+                            close=hist['Close']
+                        )])
+                        fig.update_layout(title=f"{stock_symbol} - Grafik 1 Tahun")
+                        st.plotly_chart(fig)
+                except:
+                    st.warning("Gagal menampilkan grafik histori saham.")
 
     # Chat Display
     with st.chat_message("assistant"):
@@ -136,7 +139,8 @@ def chat_with_ai():
             context = "\n".join(retrieved)
 
             system_prompt = (
-                "Anda adalah asisten AI profesional di bidang investasi. Hanya jawab pertanyaan yang relevan dengan topik investasi: saham, emas, obligasi, reksadana, dan semua instrumen keuangan. "
+                "Anda adalah asisten AI profesional di bidang investasi. "
+                "Hanya jawab pertanyaan yang relevan dengan topik investasi: saham, emas, obligasi, reksadana, dan semua instrumen keuangan. "
                 "Jawaban harus edukatif, berbasis data, dan disertai sumber terpercaya dari internet bila memungkinkan.\n"
                 f"\nKonteks tambahan:\n{context}\n"
                 "\n⚠️ Ini bukan ajakan jual/beli, melainkan informasi edukatif."
@@ -144,7 +148,7 @@ def chat_with_ai():
 
             try:
                 stream = openai.chat.completions.create(
-                    model="gpt-4o",
+                    model="gpt-4o-mini",
                     messages=[
                         {"role": "system", "content": system_prompt},
                         *[{"role": m["role"], "content": m["content"]} for m in st.session_state.messages],
@@ -162,7 +166,10 @@ def chat_with_ai():
                 st.session_state.messages.append({"role": "assistant", "content": full_response})
             except Exception as e:
                 st.error(f"Gagal mengambil respons dari OpenAI: {e}")
-                st.session_state.messages.append({"role": "assistant", "content": "Maaf, terjadi gangguan saat mengambil jawaban. Silakan coba beberapa saat lagi."})
+                st.session_state.messages.append({
+                    "role": "assistant",
+                    "content": "⚠️ Maaf, terjadi gangguan saat menghubungi model AI. Coba beberapa saat lagi."
+                })
 
 # Verifikasi login
 if "isverif" not in st.session_state or not st.session_state["isverif"]:
