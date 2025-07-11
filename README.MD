@@ -1,54 +1,53 @@
-# 📊 Real-time Stock Analytics with AI Assistant (IDIS BOT)
+# 📊 Real-time Stock Analytics with AI Assistant — IDIS BOT
 
-> Developed using Streamlit, YFinance, Plotly, FAISS, and OpenAI
-
-## 📌 Overview
-
-A Streamlit-based investment dashboard that provides:
-
-* Real-time stock price visualization with **Bollinger Bands** and **RSI**.
-* AI Chatbot **IDIS BOT** with **RAG (Retrieval-Augmented Generation)** capability to answer investment questions.
-* Support for multiple asset classes: **stocks, mutual funds, gold, bonds**, and more.
+> Built with Streamlit, YFinance, Plotly, FAISS, and OpenAI GPT-4o  
+> 🧠 AI Chatbot with RAG (Retrieval-Augmented Generation) for smart investment Q&A.
 
 ---
 
-## 🧠 IDIS BOT - AI Chat Assistant (RAG)
+## 📌 Overview
 
-**RAG (Retrieval-Augmented Generation)** is a method where chatbot responses are enhanced with information retrieved from a custom knowledge base.
+IDIS BOT is an AI-powered investment assistant and dashboard built with Streamlit.  
+It helps users visualize technical indicators and answer investment-related questions using real-time market data.
 
-🔍 This bot:
+🔎 Supports multi-asset analysis:
+- Stocks
+- Mutual Funds
+- Bonds
+- Gold
+- Crypto
 
-* Retrieves relevant facts from an investment knowledge base using OpenAI embeddings + FAISS vector search.
-* Uses **GPT-4o** to generate answers.
-* Can fetch **real-time stock data** (price, RSI, PER, PBV, etc) from Yahoo Finance.
-* Strictly answers **only investment-related topics**, such as:
+---
 
-  * Technical & fundamental analysis
-  * Asset classes (stocks, bonds, mutual funds, crypto, etc)
-  * Market insights and educational content
+## 🔗 Data Sources
 
-⚠️ Always includes disclaimer: *"Informasi edukatif, bukan ajakan jual/beli"*.
+- 📈 [Yahoo Finance](https://finance.yahoo.com/) via [`yfinance`](https://github.com/ranaroussi/yfinance)
+- 📚 Custom investment knowledge base (used in RAG)
+
+---
+
+## 🧠 RAG-Powered Chat Assistant
+
+**Retrieval-Augmented Generation (RAG)** combines embeddings, vector search, and LLMs.
+
+IDIS BOT:
+- Embeds knowledge base using `OpenAI embeddings`
+- Stores in `FAISS` vector index
+- Uses `GPT-4o` for context-rich responses
+- Retrieves real-time stock metrics (RSI, Bollinger, PER, PBV, etc)
+- Restricts answers strictly to investment topics
+
+⚠️ Disclaimer shown in every response:  
+_“Informasi edukatif, bukan ajakan jual/beli.”_
 
 ---
 
 ## 📈 Features
 
-* 📊 Bollinger Bands & RSI visualization
-* 🧮 Fundamental metrics: PE Ratio, Dividend Yield
-* 💬 Chatbot with smart investment reasoning
-* 🔐 Login verification (`st.session_state['isverif']`)
-
----
-
-## 🛠️ Tech Stack
-
-* `Python 3.10+`
-* [`Streamlit`](https://streamlit.io/)
-* [`yfinance`](https://github.com/ranaroussi/yfinance)
-* [`plotly`](https://plotly.com/python/)
-* [`openai`](https://pypi.org/project/openai/)
-* [`faiss`](https://github.com/facebookresearch/faiss)
-* \[`numpy`, `pandas`]
+- 📊 Bollinger Bands & RSI visualization  
+- 🧮 Fundamental metrics: PE Ratio, PBV, Dividend Yield  
+- 💬 RAG-based AI Chatbot  
+- 🔐 Login gate via `session_state['isverif']`
 
 ---
 
@@ -58,30 +57,43 @@ A Streamlit-based investment dashboard that provides:
 📦 Invesment_Advisor/
 ├── Home_Page.py
 ├── pages/
-│   ├── IDIS_bot.py          # AI chatbot with OpenAI + RAG
-│   └── Stock_Realtime.py    # Stock charting with RSI & Bollinger
+│   ├── IDIS_bot.py          # Chatbot with RAG
+│   └── Stock_Realtime.py    # Visual chart w/ indicators
 ├── .streamlit/
-│   └── secrets.toml         # OpenAI API Key securely stored
-└── requirements.txt
+│   └── secrets.toml         # Secure API key storage
+├── requirements.txt
+└── README.md
 ```
+
+---
+
+## 🛠️ Tech Stack
+
+**Languages**: Python 3.10+  
+**Tools & Libraries**:
+- `Streamlit`, `yfinance`, `plotly`
+- `OpenAI`, `faiss`, `pandas`, `numpy`
+
+**RAG Stack**:  
+- `OpenAI Embeddings` + `FAISS` + `GPT-4o`
 
 ---
 
 ## ⚙️ Setup Instructions
 
 ```bash
-# Clone the repo
-$ git clone https://github.com/<your-repo>
+# Clone repo
+$ git clone https://github.com/Julio-analyst/Invesment_Advisor.git
 $ cd Invesment_Advisor
 
 # Create virtual environment
 $ python -m venv .venv
-$ source .venv/bin/activate   # or .venv\Scripts\activate on Windows
+$ source .venv/bin/activate     # Or .venv\Scripts\activate on Windows
 
 # Install dependencies
 $ pip install -r requirements.txt
 
-# Set your OpenAI API key in .streamlit/secrets.toml
+# Add your OpenAI API key in .streamlit/secrets.toml
 [OPENAI_API_KEY]
 key = "your-key-here"
 
@@ -91,31 +103,54 @@ $ streamlit run Home_Page.py
 
 ---
 
-## 🧪 Sample Usage
+## 🧪 How to Use
 
-* Run `IDIS_bot.py` for AI Q\&A (e.g., "Apakah BBRI saat ini undervalued?")
-* Run `Stock_Realtime.py` to visualize Bollinger Bands & RSI for selected ticker.
+- Run `Home_Page.py`  
+- Navigate to:
+  - `IDIS_bot` for chatbot Q&A  
+  - `Stock_Realtime` to see technical charts  
 
----
-
-## 🔐 Notes
-
-* Ensure stable internet connection.
-* Be mindful of [Yahoo Finance rate limits](https://github.com/ranaroussi/yfinance/issues/800): too many requests may cause temporary bans (error 429).
-* You can enhance by adding caching or local storage for stock history.
+> Try asking: “Apakah BBRI undervalued saat ini berdasarkan PBV?”  
+> Or visualize: “AAPL” to see RSI chart with Bollinger Bands
 
 ---
 
-## 📣 Contributions
+## 🧠 Skills Demonstrated
 
-Pull requests welcome! 🚀
+- Retrieval-Augmented Generation (RAG)  
+- Embeddings & vector similarity search  
+- Streamlit dashboard design  
+- Stock analysis & financial indicators  
+- API integration (OpenAI, Yahoo Finance)  
+- Clean code structure & modularization
+
+---
+
+## 📚 References & Documentation
+
+- 🔗 Asetal BOT by kyukazamiqq: https://github.com/kyukazamiqq/Asetal_BOT
+- 📘 [OpenAI API Documentation](https://platform.openai.com/docs)
+- 📘 [FAISS by Facebook Research](https://github.com/facebookresearch/faiss)
+- 📘 [Streamlit Documentation](https://docs.streamlit.io/)
+- 📘 [YFinance Documentation](https://pypi.org/project/yfinance/)
+- 📘 [Plotly for Python](https://plotly.com/python/)
 
 ---
 
 ## 📝 License
 
-MIT
+MIT License  
+© 2025 Julio-analyst
 
 ---
 
-> Built with ❤️ by Julio-analyst | 2025
+## 📬 Contact
+
+- 🌐 [LinkedIn](https://www.linkedin.com/in/farrel-julio-427143288)  
+- 🗂️ [Portfolio (Notion)](https://linktr.ee/Julio-analyst)  
+- ✉️ farelrel12345@gmail.com
+
+---
+
+[![Streamlit](https://img.shields.io/badge/Built_with-Streamlit-orange?logo=streamlit)](https://streamlit.io/)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
